@@ -1,0 +1,122 @@
+import type { Metadata } from "next";
+import Link from "next/link";
+import { getDashboardStats, getRecentInquiries } from "@/services/dashboard.service";
+import { getPendingApprovalCount, getRecentSubmissions } from "@/services/approval.service";
+
+export const metadata: Metadata = { title: "Dashboard Admin" };
+
+const STATUS_LABEL: Record<string, string> = {
+  NEW: "Baru",
+  CONTACTED: "Dihubungi",
+  PROCESSING: "Diproses",
+  COMPLETED: "Selesai",
+  CANCELLED: "Batal",
+};
+
+export default async function AdminDashboardPage() {
+  const [stats, recent, pendingCount, submissions] = await Promise.all([
+    getDashboardStats(),
+    getRecentInquiries(),
+    getPendingApprovalCount(),
+    getRecentSubmissions(),
+  ]);
+
+  const cards = [
+    { label: "Menunggu Approval", value: pendingCount, href: "/admin/approvals", highlight: pendingCount > 0 },
+    { label: "Total Produk", value: stats.products },
+    { label: "Total Portofolio", value: stats.portfolios },
+    { label: "Total Artikel", value: stats.articles },
+    { label: "Total Inquiry", value: stats.inquiries },
+    { label: "Inquiry Baru", value: stats.newInquiries },
+  ];
+
+  return (
+    <div className="space-y-6">
+      <h1 className="text-xl font-semibold text-[#0F172A]">Dashboard</h1>
+
+      <section className="grid grid-cols-2 gap-3 lg:grid-cols-6" aria-label="Statistik">
+        {cards.map((c) => {
+          const inner = (
+            <>
+              <p className="text-2xl font-semibold text-[#0F172A]">{c.value}</p>
+              <p className="mt-1 text-sm text-[#64748B]">{c.label}</p>
+            </>
+          );
+          const cls = `rounded-[3px] border p-4 ${"highlight" in c && c.highlight ? "border-amber-300 bg-amber-50" : "border-[#E2E8F0] bg-white"}`;
+          return "href" in c && c.href ? (
+            <Link key={c.label} href={c.href} className={`${cls} transition hover:border-amber-400`}>
+              {inner}
+            </Link>
+          ) : (
+            <div key={c.label} className={cls}>
+              {inner}
+            </div>
+          );
+        })}
+      </section>
+
+      {submissions.length > 0 ? (
+        <section className="rounded-[3px] border border-[#E2E8F0] bg-white p-4" aria-label="Pengajuan terbaru">
+          <div className="mb-3 flex items-center justify-between">
+            <h2 className="font-medium text-[#0F172A]">Pengajuan Terbaru</h2>
+            <Link href="/admin/approvals" className="text-sm font-medium text-[#0063CE] hover:underline">
+              Buka Approval
+            </Link>
+          </div>
+          <ul className="divide-y divide-stone-100">
+            {submissions.map((s) => (
+              <li key={`${s.kind}-${"id" in s ? s.id : ""}`} className="flex flex-wrap items-center justify-between gap-2 py-2 text-sm">
+                <div>
+                  <p className="font-medium text-[#0F172A]">
+                    <span className="mr-2 text-xs font-normal text-[#64748B]">{s.kind}</span>
+                    {s.label}
+                  </p>
+                  <p className="text-[#64748B]">oleh {s.createdBy.name ?? s.createdBy.email}</p>
+                </div>
+                <span className={`rounded-[3px] px-2.5 py-1 text-xs font-medium ${s.approvalStatus === "PENDING" ? "bg-[#FEF3C7] text-[#B45309]" : "bg-red-100 text-[#DC2626]"}`}>
+                  {s.approvalStatus === "PENDING" ? "Menunggu" : "Ditolak"}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
+
+      <section className="rounded-[3px] border border-[#E2E8F0] bg-white p-4" aria-label="Statistik inquiry">
+        <h2 className="mb-3 font-medium text-[#0F172A]">Statistik Inquiry</h2>
+        <dl className="grid grid-cols-2 gap-2 sm:grid-cols-5">
+          {Object.entries(stats.byStatus).map(([status, count]) => (
+            <div key={status} className="rounded-[3px] bg-[#F4F5F7] px-3 py-2">
+              <dt className="text-xs text-[#64748B]">{STATUS_LABEL[status] ?? status}</dt>
+              <dd className="text-lg font-semibold text-[#0F172A]">{count}</dd>
+            </div>
+          ))}
+        </dl>
+      </section>
+
+      <section className="rounded-[3px] border border-[#E2E8F0] bg-white p-4" aria-label="Inquiry terbaru">
+        <h2 className="mb-3 font-medium text-[#0F172A]">Inquiry Terbaru</h2>
+        {recent.length === 0 ? (
+          <p className="text-sm text-[#64748B]">Belum ada inquiry masuk.</p>
+        ) : (
+          <ul className="divide-y divide-stone-100">
+            {recent.map((q) => (
+              <li key={q.id} className="flex flex-wrap items-center justify-between gap-2 py-2 text-sm">
+                <div>
+                  <p className="font-medium text-[#0F172A]">{q.name}</p>
+                  <p className="text-[#64748B]">
+                    {q.product?.name ?? "Pertanyaan umum"} · {q.quantity} pcs ·{" "}
+                    {new Date(q.createdAt).toLocaleDateString("id-ID")}
+                  </p>
+                </div>
+                <span className="rounded-[3px] bg-[#F4F5F7] px-2.5 py-1 text-xs font-medium text-[#334155]">
+                  {STATUS_LABEL[q.status] ?? q.status}
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+    </div>
+  );
+}

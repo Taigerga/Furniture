@@ -1,0 +1,9 @@
+{
+  "dependencies": {
+    "@modelcontextprotocol/core": "^2.0.0",
+    "@modelcontextprotocol/node": "^2.0.0",
+    "@modelcontextprotocol/server": "^2.0.0",
+    "@rekog/mcp-nest": "^2.0.7",
+    "zod": "^4.6.5"
+  }
+}

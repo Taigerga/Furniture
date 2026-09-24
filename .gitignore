@@ -1,0 +1,66 @@
+# Dependencies
+node_modules/
+.pnp
+.pnp.*
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/versions
+
+# Environment variables and local secrets
+.env
+.env.*
+!.env.example
+
+# Build output
+.next/
+out/
+dist/
+build/
+backend/src/generated/
+
+# Test and coverage output
+coverage/
+.nyc_output/
+
+# Logs and runtime files
+*.log
+*.pid
+*.pid.lock
+*.seed
+pids/
+.temp/
+.tmp/
+
+# TypeScript build info
+*.tsbuildinfo
+
+# Uploaded user files
+backend/uploads/*
+!backend/uploads/.gitkeep
+my-app/public/uploads/*
+!my-app/public/uploads/.gitkeep
+
+# Deployment and platform files
+.vercel/
+
+# Editor and IDE files
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+.idea/
+.project
+.classpath
+.settings/
+*.launch
+*.sublime-workspace
+
+# Operating system files
+.DS_Store
+Thumbs.db
+
+# Misc
+*.pem

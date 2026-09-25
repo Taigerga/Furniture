@@ -28,3 +28,14 @@ export async function deleteInquiryAction(id: string) {
   revalidatePath("/admin");
   redirect("/admin/inquiries?msg=Inquiry berhasil dihapus.");
 }
+
+/** Satu klik setelah admin menekan "Buka WhatsApp". */
+export async function markInquiryContactedAction(id: string) {
+  try {
+    await adminUpdateInquiryStatus(id, "CONTACTED");
+  } catch (e) {
+    throw new Error(e instanceof Error ? e.message : "Operasi gagal.");
+  }
+  revalidatePath("/admin");
+  redirect(`/admin/inquiries/${id}?msg=Inquiry ditandai sudah dihubungi.`);
+}

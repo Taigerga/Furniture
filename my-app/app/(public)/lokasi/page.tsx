@@ -3,6 +3,7 @@ import Link from "next/link";
 import { Clock, Mail, MapPin, MessageCircle, Navigation, Phone } from "lucide-react";
 import { getCompanyProfile } from "@/services/public.service";
 import { Reveal } from "@/components/public/Reveal";
+import { formatWaDisplay, telLink, waLink, waLinkPlain } from "@/lib/wa";
 
 export const metadata: Metadata = { title: "Lokasi" };
 
@@ -18,7 +19,11 @@ export default async function LocationPage() {
   const mapOpen =
     company?.mapsUrl ||
     (mapQuery ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(mapQuery)}` : null);
-  const waNumber = company?.whatsapp ? company.whatsapp.replace(/[^0-9]/g, "") : null;
+  const waNumber = company?.whatsapp ? waLinkPlain(company.whatsapp) : null;
+  const waGreeting = waLink(
+    company?.whatsapp,
+    "Halo, saya mau tanya lokasi workshop.",
+  );
 
   const details = [
     company?.address
@@ -28,10 +33,20 @@ export default async function LocationPage() {
       ? { icon: Clock, label: "Jam operasional", value: company.hours }
       : null,
     company?.phone
-      ? { icon: Phone, label: "Telepon", value: company.phone, href: `tel:${company.phone.replace(/[^0-9+]/g, "")}` }
+      ? {
+          icon: Phone,
+          label: "Telepon",
+          value: company.phone,
+          href: telLink(company.phone) ?? undefined,
+        }
       : null,
     company?.whatsapp
-      ? { icon: MessageCircle, label: "WhatsApp", value: company.whatsapp, href: `https://wa.me/${waNumber}` }
+      ? {
+          icon: MessageCircle,
+          label: "WhatsApp",
+          value: formatWaDisplay(company.whatsapp),
+          href: waNumber ?? undefined,
+        }
       : null,
     company?.email
       ? { icon: Mail, label: "Email", value: company.email, href: `mailto:${company.email}` }
@@ -108,19 +123,19 @@ export default async function LocationPage() {
                 Buka di Google Maps
               </a>
             ) : null}
-            {waNumber ? (
+            {waGreeting ? (
               <a
-                href={`https://wa.me/${waNumber}?text=${encodeURIComponent("Halo, saya mau tanya lokasi workshop.")}`}
+                href={waGreeting}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="rounded-[3px] border border-[#CBD5E1] px-6 py-3 text-sm font-medium text-[#0F172A] transition hover:border-ink"
+                className="rounded-[3px] border border-[#CBD5E1] px-6 py-3 text-sm font-medium text-[#0F172A] transition hover:border-[#0A192F]"
               >
                 Chat WhatsApp
               </a>
             ) : null}
             <Link
               href="/contact"
-              className="rounded-[3px] border border-[#CBD5E1] px-6 py-3 text-sm font-medium text-[#0F172A] transition hover:border-ink"
+              className="rounded-[3px] border border-[#CBD5E1] px-6 py-3 text-sm font-medium text-[#0F172A] transition hover:border-[#0A192F]"
             >
               Kirim Inquiry
             </Link>

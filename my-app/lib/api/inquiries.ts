@@ -15,6 +15,7 @@ export type InquiryListItem = {
   email: string;
   whatsapp: string;
   quantity: number;
+  message: string;
   status: string;
   createdAt: string;
   product: { name: string } | null;
@@ -38,7 +39,7 @@ export type InquiryDetail = {
 
 /** Public, tanpa login. Rate limit 5x/10 mnt diterapkan backend. */
 export function createInquiry(payload: InquiryPayload) {
-  return apiFetch<{ id: string }>("/inquiries", { method: "POST", body: payload });
+  return apiFetch<{ id: string; productName: string | null }>("/inquiries", { method: "POST", body: payload });
 }
 
 export function adminListInquiries(params: { status?: string; q?: string; page?: number } = {}) {

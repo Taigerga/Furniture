@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { normalizeWaNumber } from "./wa";
 
 export const LoginSchema = z.object({
   email: z.string().min(1, "Email wajib diisi.").email("Format email tidak valid."),
@@ -61,6 +62,7 @@ export const GallerySchema = z.object({
 export const InquirySchema = z.object({
   name: z.string().min(2, "Nama minimal 2 karakter.").max(191),
   email: z.string().min(1).email("Format email tidak valid."),
+  // Sudah dinormalisasi ke format internasional (628…) sebelum divalidasi.
   whatsapp: z
     .string()
     .min(9, "Nomor WhatsApp tidak valid.")
@@ -71,6 +73,25 @@ export const InquirySchema = z.object({
   productId: z.string().optional().or(z.literal("")),
 });
 
+/** Nomor WhatsApp perusahaan: wajib bisa dinormalisasi ke format 62… */
+const waField = z
+  .string()
+  .max(30)
+  .refine((v) => v.trim() === "" || normalizeWaNumber(v) !== null, {
+    message:
+      "Nomor WhatsApp tidak valid. Format internasional tanpa '+' dan tanpa nol di depan, contoh: 628121730722",
+  })
+  .optional()
+  .or(z.literal(""));
+
+/** Nomor telepon: format bebas untuk manusia, landline tetap boleh. */
+const phoneField = z
+  .string()
+  .max(30)
+  .regex(/^[0-9+()\-.\s]+$/, "Nomor telepon hanya angka dan + - ( ) . serta spasi.")
+  .optional()
+  .or(z.literal(""));
+
 export const CompanyProfileSchema = z.object({
   name: z.string().min(2).max(191),
   tagline: z.string().max(255).optional().or(z.literal("")),
@@ -78,8 +99,8 @@ export const CompanyProfileSchema = z.object({
   history: z.string().max(20000).optional().or(z.literal("")),
   vision: z.string().max(5000).optional().or(z.literal("")),
   mission: z.string().max(5000).optional().or(z.literal("")),
-  phone: z.string().max(30).optional().or(z.literal("")),
-  whatsapp: z.string().max(30).optional().or(z.literal("")),
+  phone: phoneField,
+  whatsapp: waField,
   email: z.string().email("Format email tidak valid.").optional().or(z.literal("")),
   address: z.string().max(2000).optional().or(z.literal("")),
   mapsUrl: z.string().url("URL Google Maps tidak valid.").optional().or(z.literal("")),

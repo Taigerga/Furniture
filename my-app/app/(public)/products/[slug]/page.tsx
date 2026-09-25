@@ -7,6 +7,7 @@ import { ProductGallery } from "@/components/public/ProductGallery";
 import { ProductCard } from "@/components/public/ProductCard";
 import { InquiryForm } from "@/components/public/InquiryForm";
 import { Reveal } from "@/components/public/Reveal";
+import { waLink } from "@/lib/wa";
 import { uploadUrl } from "@/lib/uploads";
 
 export async function generateMetadata({
@@ -41,6 +42,11 @@ export default async function ProductDetailPage({
     getRelatedProducts(product.category.slug, product.id),
     getCompanyProfile(),
   ]);
+
+  const productWaLink = waLink(
+    company?.whatsapp,
+    `Halo, saya tertarik dengan ${product.name}.`,
+  );
 
   const specs = [
     ["Material", product.material],
@@ -91,12 +97,12 @@ export default async function ProductDetailPage({
             >
               Tanya Produk
             </a>
-            {company?.whatsapp ? (
+            {productWaLink ? (
               <a
-                href={`https://wa.me/${company.whatsapp.replace(/[^0-9]/g, "")}?text=${encodeURIComponent(`Halo, saya tertarik dengan ${product.name}.`)}`}
+                href={productWaLink}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="rounded-[3px] border border-[#CBD5E1] px-6 py-3 text-sm font-medium text-[#0F172A] transition hover:border-ink"
+                className="rounded-[3px] border border-[#CBD5E1] px-6 py-3 text-sm font-medium text-[#0F172A] transition hover:border-[#0A192F]"
               >
                 WhatsApp
               </a>
@@ -128,7 +134,13 @@ export default async function ProductDetailPage({
           <h2 className="font-sans text-2xl font-semibold text-[#0F172A]">Tanya tentang {product.name}</h2>
           <p className="mt-1 text-sm text-[#64748B]">Form otomatis tertaut ke produk ini.</p>
           <div className="mt-5">
-            <InquiryForm products={[]} defaultProductId={product.id} whatsapp={company?.whatsapp} />
+            <InquiryForm
+              products={[]}
+              defaultProductId={product.id}
+              whatsapp={company?.whatsapp}
+              phone={company?.phone}
+              email={company?.email}
+            />
           </div>
         </Reveal>
       </section>

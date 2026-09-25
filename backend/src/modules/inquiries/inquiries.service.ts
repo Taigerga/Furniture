@@ -27,6 +27,7 @@ export class InquiriesService {
         message: dto.message.trim(),
         productId: dto.productId || undefined,
       },
+      include: { product: { select: { name: true } } },
     });
     await this.activity.notifyAdmins({
       type: 'INQUIRY_NEW',
@@ -34,7 +35,9 @@ export class InquiriesService {
       message: `${created.quantity} pcs — ${created.message.slice(0, 120)}`,
       link: '/admin/inquiries',
     }).catch(() => undefined);
-    return { id: created.id };
+    // productName dikembalikan supaya frontend bisa menyusun pesan WhatsApp
+    // pelanggan tanpa perlu fetch ulang.
+    return { id: created.id, productName: created.product?.name ?? null };
   }
 
   private buildWhere(status?: string, q?: string) {
@@ -55,6 +58,9 @@ export class InquiriesService {
         take: ADMIN_PAGE_SIZE,
         select: {
           id: true, name: true, email: true, whatsapp: true, quantity: true,
+          // message ikut diambil agar dashboard bisa menyusun pesan balas
+          // WhatsApp tanpa harus membuka tiap detail.
+          message: true,
           status: true, createdAt: true, product: { select: { name: true } },
         },
       }),

@@ -258,6 +258,17 @@ npm run db:seed
 
 > Seed menghapus data dari tabel aplikasi dan mengisi ulang dengan data demo. Jangan jalankan pada database production atau database yang berisi data asli.
 
+Akun demo yang dibuat seed:
+
+| Role | Email | Password |
+|---|---|---|
+| `ADMIN` | `admin@furniture.local` | `Admin123!` |
+| `WORKER` | `worker@furniture.local` | `Worker123!` |
+
+Nomor kontak pada company profile seed disimpan dalam format WhatsApp kanonik (`6282121730722`) dengan telepon landline (`021-21730722`) untuk menunjukkan perbedaan Kedua jenis nomor tersebut.
+
+Nomor WhatsApp pada inquiry seed **sengaja dibiarkan** format lokal `08…`. Ini menjadi regression test: frontend harus menormalisasinya saat render sehingga link `wa.me` tetap benar untuk data lama.
+
 ---
 
 ## Menjalankan Backend
@@ -381,12 +392,26 @@ Modul portofolio menangani:
 
 Modul inquiry menangani:
 
-- Pembuatan inquiry dari form publik.
+- Pembuatan inquiry dari form publik dengan rate limit 5 request per 10 menit per IP.
 - Data nama, email, WhatsApp, quantity, pesan, dan produk terkait.
-- Status inquiry.
-- Pencarian dan filter untuk admin.
-- Changes status oleh admin atau worker.
-- Pencatatan user yang menangani inquiry.
+- Pengembalian `{ id, productName }` dari `POST /inquiries` supaya frontend dapat menyusun pesan WhatsApp pelanggan tanpa fetch ulang.
+- `message` ikut dikembalikan pada `GET /admin/inquiries` dan `GET /worker/inquiries` agar dashboard bisa menyiapkan teks balasan tanpa membuka tiap detail.
+- Status inquiry: `NEW`, `CONTACTED`, `PROCESSING`, `COMPLETED`, `CANCELLED`.
+- Pencarian dan filter untuk admin dan worker.
+- Perubahan status oleh admin atau worker, termasuk pencatatan user yang menangani.
+- Notifikasi `INQUIRY_NEW` ke admin saat inquiry baru masuk.
+
+#### Normalisasi nomor WhatsApp
+
+Backend **menyimpan nomor apa adanya** dan hanya memvalidasi bentuknya (`@Matches(/^[0-9+()\-\s]+$/)`, panjang 9–30). Normalisasi ke format internasional `628…` dilakukan di frontend (`my-app/lib/wa.ts`) pada saat proses kirim dan saat render link.
+
+Konsekuensinya:
+
+- Nomor yang masuk dalam format apa pun (`0812…`, `+62812…`, `62812…`) akan tersimpan apa adanya.
+- Record lama tidak pernah dimigrasi, dan tidak perlu dimigrasi — frontend menormalkan saat render sehingga link `wa.me` selalu benar.
+- Kolom `whatsapp` pada company profile dinormalisasi oleh frontend sebelum disimpan, sehingga profil perusahaan akan tersimpan dalam format kanonik.
+
+Backend tetap berfungsi sebagai lapisan yang menolak payload berisi non-digit, tetapi tidak memaksa format tertentu.
 
 ### Company Profile
 
@@ -395,10 +420,12 @@ Modul company profile menangani data singleton perusahaan:
 - Nama, tagline, deskripsi, sejarah.
 - Visi dan misi.
 - Kontak dan WhatsApp.
-- Alamat dan maps URL.
+- Alamat, koordinat, dan maps URL.
 - Social media.
 - Jam operasional.
 - Logo dan hero image.
+
+> Endpoint `GET /admin/company-profile` dan `PATCH /admin/company-profile` hanya untuk role `ADMIN`. Frontend memakai endpoint publik `GET /company-profile` pada halaman yang dapat diakses worker. Menyebut endpoint admin dari halaman worker akan menghasilkan `403 Tidak memiliki akses`.
 
 ### Notifications
 
@@ -454,6 +481,12 @@ Frontend mengambil token dari session Auth.js melalui `lib/api/client.ts` dan me
 ### Ownership
 
 Untuk data milik worker, service melakukan validasi ownership. Worker tidak boleh mengakses atau mengubah karya worker lain melalui ID yang hanya diketahui.
+
+### Kesalahan umum: `403 Tidak memiliki akses`
+
+Pesan ini berasal dari `RolesGuard` di `src/common/guards/roles.guard.ts` ketika role user tidak termasuk `@Roles(...)` pada endpoint. Contoh yang sering terjadi: halaman `/worker/*` di frontend memanggil `GET /admin/company-profile` yang ditandai `@Roles('ADMIN')`.
+
+Saat menambah endpoint baru, periksa apakah role halaman yang memakainya lebih rendah dari role endpoint. Endpoint bersama yang dipakai admin **dan** worker harus memakai `@Roles('ADMIN', 'WORKER')`; alternatifnya frontend memakai endpoint publik.
 
 ---
 

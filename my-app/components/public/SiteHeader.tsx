@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
 import { Menu, X, Phone } from "lucide-react";
+import { telLink } from "@/lib/wa";
 import { uploadUrl } from "@/lib/uploads";
 
 const LINKS = [
@@ -57,7 +58,7 @@ export function SiteHeader({ brand, phone, logoUrl }: { brand: string; phone?: s
         <div className="hidden items-center gap-3 lg:flex">
           {phone ? (
             <a
-              href={`tel:${phone.replace(/[^0-9+]/g, "")}`}
+              href={telLink(phone) ?? "#"}
               className="flex items-center gap-1.5 font-mono text-xs text-white/70 hover:text-white"
             >
               <Phone size={14} aria-hidden />

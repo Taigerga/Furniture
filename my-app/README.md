@@ -11,7 +11,9 @@ Folder `my-app` berisi frontend aplikasi Furniture. Frontend menangani tampilan,
 - [Ringkasan](#ringkasan)
 - [Fitur](#fitur)
 - [Tech Stack](#tech-stack)
+- [Design System](#design-system)
 - [Arsitektur Integrasi](#arsitektur-integrasi)
+- [Normalisasi Nomor WhatsApp](#normalisasi-nomor-whatsapp)
 - [Prasyarat](#prasyarat)
 - [Instalasi](#instalasi)
 - [Environment Variables](#environment-variables)
@@ -46,8 +48,8 @@ Frontend berjalan di port default `3000` dan berkomunikasi dengan backend di por
 - Portofolio proyek.
 - Artikel dan berita.
 - Galeri foto.
-- Form inquiry publik.
-- Tombol konsultasi produk melalui WhatsApp.
+- Form inquiry publik. Setelah terkirim, pelanggan melihat ringkasan inquiry serta tombol melanjutkan ke WhatsApp dengan pesan yang sudah terisi otomatis, dan tombol salin sebagai cadangan.
+- Tombol konsultasi produk melalui WhatsApp dengan pesan awal terisi otomatis dan nomor yang dinormalisasi.
 - Sitemap dan robots untuk kebutuhan SEO.
 
 ### Admin Dashboard
@@ -60,8 +62,9 @@ Route `/admin` hanya dapat diakses oleh role `ADMIN`.
 - Approve/reject disertai alasan penolakan.
 - Upload dan pengelolaan gambar produk.
 - Editor artikel Tiptap.
-- Pengaturan company profile.
-- Manajemen inquiry.
+- Pengaturan company profile dengan pratinjau tautan WhatsApp dan telepon.
+- Manajemen inquiry, termasuk balas via WhatsApp dengan pesan otomatis, pratinjau, salin, dan aksi satu klik "Tandai sudah dihubungi".
+- Balas cepat dari daftar inquiry tanpa membuka detail.
 - Manajemen worker.
 - Notifikasi.
 
@@ -108,6 +111,60 @@ Frontend menggunakan Server Components sebagai default. Client Components diguna
 
 ---
 
+## Design System
+
+Frontend memakai satu bahasa visual: **Modern Architectural Blueprint / Technical Corporate**. Seluruh token warna, font, dan utility berada di `app/globals.css` pada blok `@theme`.
+
+### Font
+
+| Peran | Font | Variabel |
+|---|---|---|
+| Sans (UI, body, heading) | Plus Jakarta Sans 400–800 | `--font-sans` |
+| Mono (label teknis, nomor, tanggal) | Geist Mono | `--font-geist-mono` |
+
+Hanya satu keluarga sans-serif. Mono khusus untuk label teknis, nomor telepon, angka statistik, dan tanggal. Font serif display sudah dihapus; utility `.font-display` tidak lagi ada.
+
+### Warna
+
+| Token | Nilai | Dipakai untuk |
+|---|---|---|
+| `navy` | `#0A192F` | Sidebar, header, footer, tombol utama |
+| `navy-light` | `#1B2A4A` | Panel/nav mobile di atas navy |
+| `navy-hover` | `#13233F` | Hover tombol utama |
+| `electric` | `#007BFF` | CTA header publik, aksen border atas |
+| `electric-dark` | `#0063CE` | Teks aksen kecil (lolos AA di atas putih) |
+| `electric-active` | `#0056B3` | State pressed |
+| `cyan` | `#00B4D8` | **Hanya dekorasi teknis** di atas navy |
+| `background` | `#F4F5F7` | Background halaman |
+| `surface` | `#FFFFFF` | Kartu, panel, tabel |
+| `border` / `border-strong` | `#E2E8F0` / `#CBD5E1` | Border tipis |
+| `text` / `text-secondary` / `text-muted` | `#0F172A` / `#334155` / `#64748B` | Hierarki teks |
+
+Status semantik:
+
+| Status | Teks | Latar |
+|---|---|---|
+| Success | `#15803D` | `#DCFCE7` |
+| Warning | `#B45309` | `#FEF3C7` |
+| Error | `#DC2626` | `#FEE2E2` |
+| Info | `#007BFF` | `#DBEAFE` |
+
+### Aturan yang harus dijaga saat menambah UI
+
+- **Radius 3px** (`--radius-sharp`). `rounded-full` hanya untuk dot, avatar, dan badge angka.
+- **Jangan pakai `#007BFF` sebagai warna teks di atas putih** untuk teks kecil — kontrasnya tidak lolos AA. Gunakan `electric-dark` `#0063CE`.
+- **Satu aksen.** Cyan tidak pernah menjadi warna tombol kedua.
+- **Tombol utama pakai navy `#0A192F` dengan teks putih**, bukan biru elektrik, demi lolos AA.
+- **Border tipis + spasi** lebih diutamakan daripada shadow.
+- Motif grid blueprint (`bg-blueprint-light` / `bg-blueprint-dark`, opacity 0.055–0.06) hanya pada hero, section header, dashboard header, dan empty state — jangan seluruh halaman.
+- `.tech-label` untuk label teknis mono uppercase.
+- Fokus keyboard ditangani global oleh `:focus-visible` (outline 2px electric).
+- Animasi hanya transform/opacity, 150–300ms, dan menghormati `prefers-reduced-motion`.
+
+Pola yang sudah berjalan di kode: sidebar admin memakai active state `border-l-2` cyan + `bg-white/10`; `PageHeader` memakai `border-b-2` navy; komponen Client Component tidak boleh menerima fungsi atau komponen sebagai props dari Server Component (lihat `AdminNav`).
+
+---
+
 ## Arsitektur Integrasi
 
 ```text
@@ -138,11 +195,64 @@ Next.js App Router
 - `lib/actions/` — server actions yang bridging UI ke API.
 - `lib/auth.ts` — konfigurasi Auth.js Credentials.
 - `lib/validations.ts` — schema validasi Zod.
+- `lib/wa.ts` — normalisasi nomor WhatsApp/telepon dan pembentuk pesan otomatis.
 - `shared/ui/` — primitive UI bersama.
 - `services/` — service/helper yang tersisa dari implementasi awal.
 - `public/` — asset frontend dan upload development.
 
 `lib/api/client.ts` menjadi pusat fetch ke backend. Fungsi `authedFetch` mengambil token backend dari session dan otomatis menambahkan header `Authorization`.
+
+### `shared/ui/`
+
+| File | Status | Keterangan |
+|---|---|---|
+| `CopyButton.tsx` | Dipakai | Tombol salin ke clipboard dengan feedback "Tersalin". Dipakai di form inquiry publik dan panel balas inquiry. |
+| `Button.tsx` | Tersedia, belum dipakai | Primitive tombol dengan variant `primary` / `secondary` / `danger` / `ghost`. |
+| `Card.tsx` | Tersedia, belum dipakai | Panel dengan border tipis, opsi aksen biru. |
+| `Badge.tsx` | Tersedia, belum dipakai | Badge status dengan palet semantik. |
+| `Input.tsx` | Tersedia, belum dipakai | `Input`, `Textarea`, `Select`, `FieldLabel`, `FieldError`. |
+| `Alert.tsx` | Tersedia, belum dipakai | `Alert` (info/success/warning/error) dan `EmptyState`. |
+
+Primitive yang belum dipakai dapat di adopsi secara bertahap untuk mengurangi pengulangan class hardcoded, atau dihapus bila tidak diperlukan. Jangan sampai muncul sistem styling kedua yang berbeda dari token di `app/globals.css`.
+
+---
+
+## Normalisasi Nomor WhatsApp
+
+`wa.me` hanya menerima format internasional **tanpa `+` dan tanpa `0` di depan**. Mayoritas pengguna Indonesia mengetik format lokal `08xx`, yang menghasilkan link rusak bila tidak dinormalisasi. Seluruh normalisasi terpusat di `lib/wa.ts`:
+
+| Input | Angka hasil |
+|---|---|
+| `0812-3456-7890` | `6281234567890` |
+| `+62 812 3456 7890` | `6281234567890` |
+| `6281234567890` | `6281234567890` |
+
+API utama:
+
+| Fungsi | Kegunaan |
+|---|---|
+| `normalizeWaNumber(raw)` | Mengembalikan digit internasional, atau `null` bila tidak valid. |
+| `formatWaDisplay(raw)` | `6282121730722` → `+62 821-2173-0722` untuk tampilan. |
+| `waLink(number, text)` | Link WA dengan pesan terisi, atau `null`. |
+| `waLinkPlain(number)` | Link WA tanpa pesan. |
+| `telLink(raw)` | Link telepon; landline `021…` tetap lokal. |
+| `buildCustomerInquiryText(inq, companyName)` | Teks yang dikirim pelanggan ke perusahaan. |
+| `buildAdminReplyText(inq, opts)` | Teks balasan admin/worker ke pelanggan. |
+
+**Jangan pernah membangun string `wa.me` di luar `lib/wa.ts`.** Semua halaman publik dan dashboard memakai helper ini, sehingga perubahan aturan format hanya perlu dilakukan di satu tempat.
+
+Nomor yang gagal dinormalisasi menghasilkan `null`; UI kemudian menyembunyikan tombol WhatsApp dan menampilkan tautan telepon serta email sebagai gantinya. Data lama di database tidak dimigrasi — normalisasi berjalan saat render, sehingga record bertulis `0812…` maupun `+62812…` tetap menghasilkan link yang benar.
+
+### Format nomor pada Company Profile
+
+| Field | Cara mengisi | Tersimpan | Tampil |
+|---|---|---|---|
+| WhatsApp | `6282121730722` | `6282121730722` | `+62 821-2173-0722` |
+| Telepon | Bebas, mis. `0821 2173 0722` | apa adanya | apa adanya |
+
+Field WhatsApp dinormalisasi otomatis oleh `lib/actions/company.ts` ketika form disimpan, sehingga mengetik `0821 2173 0722` tetap aman. Field Telepon sengaja dibiarkan apa adanya supaya tetap enak dibaca; hanya link `tel:`-nya yang dinormalisasi.
+
+Halaman `/admin/company-profile` menampilkan pratinjau tautan langsung (`wa.me/...` dan `tel:...`) di bawah field kontak dan di panel "Tampil di mana", sehingga Admin bisa memverifikasi tanpa menghitung sendiri.
 
 ---
 
@@ -280,6 +390,7 @@ npm start
 | `/articles` | Daftar artikel |
 | `/articles/[slug]` | Detail artikel |
 | `/gallery` | Galeri foto |
+| `/lokasi` | Lokasi workshop dengan peta, koordinat, dan kontak |
 | `/contact` | Kontak dan form inquiry |
 | `/login` | Login admin dan worker |
 
@@ -292,11 +403,12 @@ Route `/admin/*` hanya untuk role `ADMIN`, antara lain:
 - `/admin/categories` — CRUD kategori.
 - `/admin/articles` — CRUD artikel.
 - `/admin/gallery` — CRUD galeri.
-- `/admin/portfolio` — CRUD portofolio.
-- `/admin/inquiries` — manajemen inquiry.
+- `/admin/portfolios` — CRUD portofolio.
+- `/admin/inquiries` — manajemen inquiry, termasuk tombol balas cepat via WhatsApp.
+- `/admin/inquiries/[id]` — detail inquiry plus panel balas via WhatsApp.
 - `/admin/approvals` — approval pengajuan worker.
 - `/admin/company-profile` — company profile.
-- `/admin/users` — manajemen worker.
+- `/admin/workers` — manajemen worker.
 - `/admin/notifications` — notifikasi.
 
 ### Worker
@@ -307,10 +419,14 @@ Route `/worker/*` dapat diakses oleh role `ADMIN` dan `WORKER`, antara lain:
 - `/worker/products` — produk milik worker.
 - `/worker/articles` — artikel milik worker.
 - `/worker/gallery` — galeri milik worker.
+- `/worker/categories` — kategori milik worker.
 - `/worker/inquiries` — inquiry yang ditangani worker.
+- `/worker/inquiries/[id]` — detail inquiry plus panel balas via WhatsApp.
 - `/worker/submissions` — riwayat pengajuan.
 - `/worker/notifications` — notifikasi.
 - `/worker/profile` — profil akun.
+
+> Halaman di bawah `/worker` wajib mengambil company profile dari endpoint **publik** `GET /company-profile`. Endpoint `GET /admin/company-profile` hanya untuk role `ADMIN` dan akan membalas `403 Tidak memiliki akses` bila dipanggil dari halaman worker.
 
 ---
 
@@ -395,10 +511,11 @@ my-app/
 │   ├── actions/              # Server actions
 │   ├── auth.ts               # Auth.js configuration
 │   ├── uploads.ts            # Upload helpers
-│   └── validations.ts        # Zod schemas
+│   ├── validations.ts        # Zod schemas
+│   └── wa.ts                 # Normalisasi nomor WA/telepon + pembentuk pesan
 ├── services/                 # Service helpers
 ├── shared/
-│   └── ui/                   # Shared UI primitives
+│   └── ui/                   # Shared UI primitives (CopyButton, Badge, Alert, ...)
 ├── types/                    # TypeScript types
 ├── public/                   # Static assets
 ├── proxy.ts                  # Route protection
@@ -434,6 +551,10 @@ my-app/
 - Jangan menambahkan `DATABASE_URL` ke frontend; koneksi database milik backend.
 - Gunakan `lib/api/*` untuk request yang membutuhkan backend.
 - Gunakan Zod untuk validasi input yang masuk dari user.
+- Bangun link WhatsApp dan telepon **hanya** lewat `lib/wa.ts`. Jangan menulis `https://wa.me/...` manual di komponen.
+- Halaman di bawah `/worker` jangan mengimpor fungsi dari `services/admin.service`; endpoint `/admin/*` hanya untuk role `ADMIN`.
+- Client Component tidak boleh menerima komponen (icon) atau fungsi sebagai props dari Server Component, karena hanya plain object yang dapat melewati boundary. Lihat `components/admin/AdminNav.tsx` dan `components/worker/WorkerNav.tsx` yang mendefinisikan daftar navigasinya sendiri.
+- Ikuti Design System: radius 3px, navy untuk tombol utama, satu aksen saja, border tipis, dan hormati `prefers-reduced-motion`.
 - Tambahkan loading, error, dan empty state untuk data yang berasal dari API.
 - Jangan menghapus `.next` saat development server sedang berjalan kecuali memang diperlukan.
 - Setelah mengubah route, jalankan `npx next typegen` bila type route terasa basi.
@@ -486,6 +607,21 @@ Jika masih terjadi, hentikan dev server, hapus `.next`, jalankan ulang developme
 - Pastikan endpoint upload backend aktif.
 - Pastikan file tidak melebihi batas ukuran.
 - Restart Next.js setelah mengubah `next.config.ts`.
+
+### `Tidak memiliki akses` saat membuka halaman worker
+
+- Halaman di bawah `/worker` memanggil endpoint `/admin/*` yang hanya boleh untuk role `ADMIN`.
+- Gunakan `getCompanyProfile()` dari `services/public.service` (endpoint publik `GET /company-profile`) untuk data company profile di halaman worker.
+- Jalankan `npm run build` untuk menemukan impor yang salah secara otomatis.
+
+### Tombol WhatsApp hilang atau membuka nomor yang salah
+
+- Semua link WA harus dibangun lewat `lib/wa.ts`. Cek tidak ada `https://wa.me/` manual di komponen.
+- Nomor harus berada pada format internasional tanpa `+` dan tanpa `0` di depan, misalnya `6282121730722`.
+- Buka `/admin/company-profile` dan cek baris "Nomor WhatsApp" pada panel "Tampil di mana" untuk melihat link hasil akhir.
+- Simpan ulang form company profile untuk memindahkan data lama ke format kanonik.
+- Di panel balas inquiry, tombol WA sengaja disembunyikan bila nomor pelanggan tidak valid; tautan telepon dan email otomatis menggantikannya.
+- Landline `021-…` tidak boleh diubah menjadi `+6221…`. `telLink()` sudah membedakan seluler (`08xx`) dan landline.
 
 ### Build gagal
 

@@ -3,6 +3,16 @@ import Link from "next/link";
 import { adminListInquiries } from "@/services/admin.service";
 import { PageHeader, FlashMessage } from "@/components/admin/PageHeader";
 import { AdminPagination } from "@/components/admin/AdminPagination";
+import { getCompanyProfile } from "@/services/public.service";
+import { buildAdminReplyText, formatWaDisplay, waLink } from "@/lib/wa";
+
+const STATUS_TONE: Record<string, string> = {
+  NEW: "bg-[#DBEAFE] text-[#0063CE] border-[#BFDBFE]",
+  CONTACTED: "bg-[#FEF3C7] text-[#B45309] border-[#FDE68A]",
+  PROCESSING: "bg-[#DBEAFE] text-[#0063CE] border-[#BFDBFE]",
+  COMPLETED: "bg-[#DCFCE7] text-[#15803D] border-[#BBF7D0]",
+  CANCELLED: "bg-[#F1F5F9] text-[#64748B] border-[#E2E8F0]",
+};
 
 export const metadata: Metadata = { title: "Kelola Inquiry" };
 
@@ -29,6 +39,16 @@ export default async function AdminInquiriesPage({
     q: q || undefined,
     page,
   });
+
+  let companyName = "Tim kami";
+  let companyPhone: string | null = null;
+  try {
+    const company = await getCompanyProfile();
+    if (company?.name) companyName = company.name;
+    companyPhone = company?.phone ?? null;
+  } catch {
+    /* pakai nama cadangan */
+  }
 
   const href = (n: number) => {
     const p = new URLSearchParams();
@@ -69,25 +89,58 @@ export default async function AdminInquiriesPage({
         </p>
       ) : (
         <ul className="space-y-2">
-          {items.map((inq) => (
-            <li key={inq.id}>
-              <Link
-                href={`/admin/inquiries/${inq.id}`}
-                className="flex flex-wrap items-center justify-between gap-2 rounded-[3px] border border-[#E2E8F0] bg-white p-3 transition hover:border-[#64748B]"
+          {items.map((inq) => {
+            const quickWa = waLink(
+              inq.whatsapp,
+              buildAdminReplyText(
+                {
+                  name: inq.name,
+                  email: inq.email,
+                  whatsapp: inq.whatsapp,
+                  quantity: inq.quantity,
+                  message: inq.message,
+                  productName: inq.product?.name ?? null,
+                  createdAt: inq.createdAt,
+                },
+                { companyName, companyPhone },
+              ),
+            );
+            return (
+              <li
+                key={inq.id}
+                className="flex flex-wrap items-center justify-between gap-2 rounded-[3px] border border-[#E2E8F0] bg-white p-3 transition hover:border-[#CBD5E1]"
               >
-                <div className="min-w-0">
-                  <p className="truncate font-medium text-[#0F172A]">{inq.name}</p>
+                <Link href={`/admin/inquiries/${inq.id}`} className="min-w-0 flex-1">
+                  <p className="truncate font-semibold text-[#0A192F] hover:underline">{inq.name}</p>
                   <p className="mt-0.5 truncate text-xs text-[#64748B]">
                     {inq.product?.name ?? "Pertanyaan umum"} · {inq.quantity} pcs ·{" "}
+                    <span className="font-mono">{formatWaDisplay(inq.whatsapp)}</span> ·{" "}
                     {new Date(inq.createdAt).toLocaleDateString("id-ID", { day: "numeric", month: "short", year: "numeric" })}
                   </p>
+                </Link>
+                <div className="flex shrink-0 items-center gap-2">
+                  <span
+                    className={`rounded-[3px] border px-2 py-0.5 text-[11px] font-semibold ${
+                      STATUS_TONE[inq.status] ?? "bg-[#F1F5F9] text-[#334155] border-[#E2E8F0]"
+                    }`}
+                  >
+                    {STATUS_LABEL[inq.status]}
+                  </span>
+                  {quickWa ? (
+                    <a
+                      href={quickWa}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      title={`Balas ${inq.name} via WhatsApp`}
+                      className="rounded-[3px] bg-[#0A192F] px-3 py-1.5 text-[11px] font-semibold text-white transition hover:bg-[#13233F]"
+                    >
+                      Balas WA
+                    </a>
+                  ) : null}
                 </div>
-                <span className="rounded-[3px] bg-[#F4F5F7] px-2.5 py-1 text-xs font-medium text-[#334155]">
-                  {STATUS_LABEL[inq.status]}
-                </span>
-              </Link>
-            </li>
-          ))}
+              </li>
+            );
+          })}
         </ul>
       )}
       <AdminPagination page={page} totalPages={totalPages} href={href} />

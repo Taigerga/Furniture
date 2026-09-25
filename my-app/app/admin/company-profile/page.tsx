@@ -7,6 +7,7 @@ import { updateCompanyAction } from "@/lib/actions/company";
 import { CompanyForm } from "@/components/admin/CompanyForm";
 import { AccountForm } from "@/components/admin/AccountForm";
 import { FlashMessage } from "@/components/admin/PageHeader";
+import { formatWaDisplay, telLink, waLinkPlain } from "@/lib/wa";
 import { uploadUrl } from "@/lib/uploads";
 
 export const metadata: Metadata = { title: "Profil Perusahaan" };
@@ -44,6 +45,28 @@ export default async function AdminCompanyPage({
     hours: company?.hours ?? "",
     heroImageUrl: company?.heroImageUrl ? "1" : "",
   };
+
+  const waLinkValue = company?.whatsapp ? waLinkPlain(company.whatsapp) : null;
+  const waInvalid = Boolean(company?.whatsapp) && waLinkValue === null;
+  const telLinkValue = company?.phone ? telLink(company.phone) : null;
+
+  const displayRows = [
+    ["Logo", "Header, footer, sidebar admin, halaman login"],
+    ["Foto hero", "Foto besar beranda"],
+    ["Tagline", "Sub-judul hero beranda"],
+    ["Visi, misi, sejarah", "Halaman tentang"],
+    ["Alamat & kontak", "Footer, halaman kontak & tentang"],
+    ["Titik koordinat", "Peta lokasi di beranda (tombol Lokasi)"],
+    company?.whatsapp
+      ? [
+          "Nomor WhatsApp",
+          waInvalid
+            ? "TIDAK VALID — link dimatikan di seluruh website. Perbaiki di form."
+            : `${formatWaDisplay(company.whatsapp)} → ${waLinkValue}`,
+        ]
+      : null,
+    company?.phone ? ["Nomor telepon", telLinkValue ?? "—"] : null,
+  ].filter((r): r is [string, string] => r !== null);
 
   return (
     <div>
@@ -83,17 +106,10 @@ export default async function AdminCompanyPage({
           <section className="rounded-[3px] border border-[#E2E8F0] bg-white p-5" aria-label="Tampil di mana">
             <h2 className="font-medium text-[#0F172A]">Tampil di mana</h2>
             <dl className="mt-3 space-y-2.5 text-sm">
-              {[
-                ["Logo", "Header, footer, sidebar admin, halaman login"],
-                ["Foto hero", "Foto besar beranda"],
-                ["Tagline", "Sub-judul hero beranda"],
-                ["Visi, misi, sejarah", "Halaman tentang"],
-                ["Alamat & kontak", "Footer, halaman kontak & tentang"],
-                ["Titik koordinat", "Peta lokasi di beranda (tombol Lokasi)"],
-              ].map(([k, v]) => (
+              {displayRows.map(([k, v]) => (
                 <div key={k}>
                   <dt className="font-medium text-[#0F172A]">{k}</dt>
-                  <dd className="text-[#64748B]">{v}</dd>
+                  <dd className="break-words text-[#64748B]">{v}</dd>
                 </div>
               ))}
             </dl>

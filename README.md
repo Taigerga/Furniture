@@ -11,6 +11,8 @@ Furniture adalah aplikasi full-stack yang dirancang untuk membantu perusahaan fu
 - [Tentang Project](#tentang-project)
 - [Fitur Utama](#fitur-utama)
 - [Arsitektur](#arsitektur)
+- [Design System](#design-system)
+- [Alur Inquiry dan WhatsApp](#alur-inquiry-dan-whatsapp)
 - [Struktur Repository](#struktur-repository)
 - [Tech Stack](#tech-stack)
 - [Prasyarat](#prasyarat)
@@ -66,8 +68,8 @@ Pengunjung / Admin / Worker
 - Galeri foto produk, workshop, kantor, dan kegiatan.
 - Portofolio proyek dengan informasi klien, lokasi, tahun, dan dokumentasi.
 - Artikel/berita furniture, termasuk artikel draft dan artikel published.
-- Form inquiry publik tanpa login.
-- Konsultasi produk melalui WhatsApp tanpa fitur harga langsung.
+- Form inquiry publik tanpa login. Setelah terkirim, pelanggan mendapat ringkasan inquiry dan tombol untuk melanjutkan percakapan ke WhatsApp dengan pesan yang sudah terisi otomatis.
+- Tombol konsultasi WhatsApp di seluruh halaman publik, dengan pesan awal yang terisi otomatis dan nomor yang dinormalisasi ke format internasional.
 
 ### Dashboard Admin
 
@@ -82,7 +84,8 @@ Dashboard admin tersedia pada route `/admin` dan hanya dapat diakses oleh user d
 - Approval pengajuan worker.
 - Approve/reject dengan alasan penolakan.
 - Gestion inquiry: cari, filter status, dan ubah status.
-- Balas inquiry melalui WhatsApp.
+- Balas inquiry via WhatsApp dengan pesan yang sudah terisi otomatis, pratinjau teks, tombol salin, dan aksi satu klik "Tandai sudah dihubungi".
+- Balas cepat langsung dari daftar inquiry tanpa membuka detail.
 - Kelola user worker.
 - Aktifkan/nonaktifkan worker.
 - Reset password worker.
@@ -167,6 +170,156 @@ Session frontend memiliki masa berlaku sekitar 8 jam. Perubahan role atau status
 
 ---
 
+## Design System
+
+Frontend memakai satu bahasa visual: **Modern Architectural Blueprint / Technical Corporate**. Seluruh token terkumpul di `my-app/app/globals.css` pada blok `@theme`. Tidak ada lagi palet lama (cream, pine, moss, ink) maupun font display serif.
+
+### Font
+
+| Peran | Font | Variabel CSS |
+|---|---|---|
+| Sans (UI, body, heading) | Plus Jakarta Sans (400–800) | `--font-sans` |
+| Mono (label teknis, nomor, tanggal) | Geist Mono | `--font-geist-mono` |
+
+Hanya satu keluarga sans-serif. Mono dipakai khusus untuk label teknis, nomor telepon, angka statistik, dan tanggal — bukan untuk paragraf.
+
+### Warna
+
+| Token | Nilai | Dipakai untuk |
+|---|---|---|
+| `navy` | `#0A192F` | Sidebar, header, footer, tombol utama, heading |
+| `navy-light` | `#1B2A4A` | Panel/nav mobile di atas navy |
+| `navy-hover` | `#13233F` | Hover tombol utama |
+| `electric` | `#007BFF` | CTA di header publik, aksen border atas |
+| `electric-dark` | `#0063CE` | Teks aksen kecil (lolos AA di atas putih) |
+| `electric-active` | `#0056B3` | State pressed |
+| `cyan` | `#00B4D8` | **Hanya dekorasi teknis** di atas navy |
+| `background` | `#F4F5F7` | Background halaman |
+| `surface` | `#FFFFFF` | Kartu, panel, tabel |
+| `border` / `border-strong` | `#E2E8F0` / `#CBD5E1` | Border tipis |
+| `text` / `text-secondary` / `text-muted` | `#0F172A` / `#334155` / `#64748B` | Hierarki teks |
+
+Status semantik (dipakai badge, alert, empty state):
+
+| Status | Teks | Latar |
+|---|---|---|
+| Success | `#15803D` | `#DCFCE7` |
+| Warning | `#B45309` | `#FEF3C7` |
+| Error | `#DC2626` | `#FEE2E2` |
+| Info | `#007BFF` | `#DBEAFE` |
+
+### Aturan bentuk dan warna
+
+- **Radius dikunci 3px** (`--radius-sharp`) untuk tombol, kartu, input, badge, tabel. `rounded-full` hanya untuk dot, avatar, dan badge angka.
+- **Biru `#007BFF` tidak dipakai sebagai warna teks di atas putih** untuk ukuran kecil — kontrasnya tidak lolos AA. Gunakan `electric-dark` `#0063CE`.
+- **Satu aksen saja.** Cyan tidak pernah menjadi warna tombol kedua.
+- **Border tipis + spasi** lebih diutamakan daripada shadow. Shadow hanya untuk elemen yang benar-benar melayang.
+- Motif grid blueprint (`bg-blueprint-light` / `bg-blueprint-dark`, opacity 0.055–0.06) hanya pada hero, section header, dashboard header, dan empty state. Jangan dipakai sebagai background penuh halaman.
+- `.tech-label` untuk label teknis mono uppercase dengan letter-spacing lebar.
+- Focus ring global `:focus-visible` berwarna electric, 2px.
+- Animasi hanya transform/opacity, 150–300ms, dan menghormati `prefers-reduced-motion`.
+
+---
+
+## Alur Inquiry dan WhatsApp
+
+### Normalisasi nomor
+
+`wa.me` hanya menerima format internasional **tanpa `+` dan tanpa `0` di depan**. Mayoritas orang Indonesia mengetik format lokal `08xx`, yang akan menghasilkan link rusak bila tidak dinormalisasi. Seluruh normalisasi terpusat di `my-app/lib/wa.ts`:
+
+| Input | Angka hasil |
+|---|---|
+| `0812-3456-7890` | `6281234567890` |
+| `+62 812 3456 7890` | `6281234567890` |
+| `6281234567890` | `6281234567890` |
+
+Nomor yang tidak bisa dinormalisasi (terlalu pendek, terlalu panjang, bukan angka) menghasilkan `null`, dan UI menyembunyikan tombol WhatsApp serta menampilkan alternatif telepon dan email.
+
+Data lama di database tidak pernah dimigrasi. Normalisasi dijalankan saat render, sehingga record bertulis `0812…` maupun `+62812…` tetap menghasilkan link yang benar.
+
+### Alur pelanggan
+
+```text
+Form inquiry (publik)
+  → createInquiryAction
+      → normalisasi nomor → validasi Zod → POST /inquiries
+      → backend simpan + kirim notifikasi ke admin
+  → server menyusun teks pesan WhatsApp
+  → success state: ringkasan inquiry + tombol WA + tombol salin
+```
+
+Teks yang dikirim pelanggan ke nomor perusahaan:
+
+```text
+Halo {NAMA PERUSAHAAN},
+
+Saya baru mengirim inquiry lewat website.
+
+Nama     : {nama}
+WhatsApp : +62 812-3456-7890
+Email    : {email}
+Produk   : {nama produk / Pertanyaan umum}
+Jumlah   : {jumlah} pcs
+
+Pesan:
+{isi pesan}
+
+Mohon dikonfirmasi ya. Terima kasih.
+```
+
+Jika nomor WhatsApp perusahaan kosong atau tidak valid, tombol WA digantikan oleh tautan telepon dan email, dan tombol **Salin pesan** tetap tersedia.
+
+### Alur admin dan worker
+
+```text
+Daftar inquiry → tombol "Balas WA"  (opsional, tanpa buka detail)
+Detail inquiry → panel "Balas ke pelanggan"
+                 ├── Buka WhatsApp   (pesan terisi otomatis)
+                 ├── Salin teks
+                 ├── Telepon / Email
+                 ├── Tandai sudah dihubungi  → status CONTACTED
+                 └── Pratinjau teks balasan (bisa disalin)
+```
+
+Teks balasan yang disiapkan admin atau worker:
+
+```text
+Halo Kak {nama pelanggan},
+
+Terima kasih sudah menghubungi {NAMA PERUSAHAAN} dan mengirim inquiry lewat website.
+
+Ringkasan inquiry Anda:
+Produk : {nama produk / Pertanyaan umum}
+Jumlah : {jumlah} pcs
+Tanggal: {tanggal inquiry}
+
+Pesan Anda:
+"{isi pesan pelanggan}"
+
+Mohon ditunggu, tim kami akan menindaklanjuti segera.
+
+Balas langsung di chat ini ya. Kalau ada yang perlu disesuaikan, silakan informasikan.
+
+Salam,
+{NAMA PERUSAHAAN}
+{nomor telepon perusahaan}
+```
+
+Satu klik **Buka WhatsApp** sudah cukup: Admin tinggal memeriksa di WhatsApp lalu menekan tombol kirim. Tombol **Tandai sudah dihubungi** dipakai bila ingin mencatat bahwa pelanggan sudah ditindaklanjuti.
+
+### Format nomor pada Company Profile
+
+| Field | Cara mengisi | Tersimpan sebagai | Tampil sebagai |
+|---|---|---|---|
+| WhatsApp | `6282121730722` | `6282121730722` | `+62 821-2173-0722` |
+| Telepon | Bebas, mis. `0821 2173 0722` atau `021-21730722` | apa adanya | apa adanya |
+
+Field WhatsApp **dinormalisasi otomatis ketika form disimpan**, jadi mengetik `0821 2173 0722` tetap aman. Field Telepon sengaja tidak dinormalisasi supaya tetap enak dibaca; hanya link `tel:`-nya yang dinormalisasi, dan landline seperti `021-…` tetap dipertahankan sebagai nomor lokal.
+
+Halaman **Admin → Profil Perusahaan** menampilkan pratinjau tautan langsung (`wa.me/...` dan `tel:...`) supaya Admin bisa memverifikasi tanpa menghitung sendiri.
+
+---
+
 ## Struktur Repository
 
 ```text
@@ -182,8 +335,10 @@ Furniture/
 │   │   ├── api/                     # REST client ke backend NestJS
 │   │   ├── actions/                 # Server actions yang memanggil API
 │   │   ├── auth.ts                  # Auth.js credentials provider
-│   │   └── validations.ts           # Zod validation
-│   ├── shared/                      # Komponen UI bersama
+│   │   ├── validations.ts           # Zod validation
+│   │   └── wa.ts                    # Normalisasi nomor WA/telepon + pembentuk pesan
+│   ├── shared/
+│   │   └── ui/                      # Primitive UI yang dipakai lintas domain
 │   ├── services/                    # Service layer/legacy helpers
 │   ├── public/                      # Asset frontend
 │   ├── proxy.ts                     # Optimistic route protection
@@ -439,6 +594,8 @@ Akun berikut dibuat oleh `backend/prisma/seed.ts` dan hanya untuk development:
 
 Ganti atau hapus akun tersebut sebelum aplikasi dipakai di production.
 
+Seed juga mengisi company profile demo dengan nomor kontak contoh. Nomor WhatsApp pada seed **sudah disimpan dalam format kanonik** (`6282121730722`), sedangkan nomor inquiry pada seed sengaja dibiarkan format lokal `08…` sebagai regression test — normalisasi saat render harus tetap mengubahnya menjadi link yang benar.
+
 ---
 
 ## Development
@@ -490,7 +647,7 @@ Command yang sering digunakan:
 - `GET /portfolios/:slug`
 - `GET /company-profile`
 - `GET /public/counts`
-- `POST /inquiries`
+- `POST /inquiries` — mengembalikan `{ id, productName }`; `productName` dipakai frontend untuk menyusun pesan WhatsApp pelanggan tanpa perlu fetch ulang.
 
 ### Authenticated
 
@@ -594,6 +751,14 @@ npx prisma generate
 ### Port sudah digunakan
 
 Ganti `PORT` pada `backend/.env` atau hentikan proses yang memakai port tersebut. Jika port backend diganti, sesuaikan juga `API_URL` dan `NEXT_PUBLIC_API_URL` pada frontend.
+
+### Tombol WhatsApp hilang atau membuka nomor yang salah
+
+- Buka **Admin → Profil Perusahaan**, cek baris "Nomor WhatsApp" pada panel "Tampil di mana". Panel tersebut menampilkan link hasil akhir, misalnya `https://wa.me/6282121730722`.
+- Format yang benar adalah angka saja, internasional, tanpa `+` dan tanpa `0` di depan: `6282121730722`.
+- Simpan ulang form untuk memindahkan data lama (mis. `082121730722`) ke format kanonik.
+- Di halaman detail inquiry, panel "Balas ke pelanggan" menampilkan nomor pelanggan yang sudah dinormalisasi. Kalau tombol WA tidak muncul, berarti nomor pelanggan memang tidak valid, dan tautan telepon/email otomatis menggantikan.
+- Format landline seperti `021-21730722` **tidak boleh** diubah menjadi `+6221…`; itu akan menyambungkan ke nomor yang salah. Sistem sudah otomatis membedakan seluler (`08xx`) dan landline.
 
 ---
 

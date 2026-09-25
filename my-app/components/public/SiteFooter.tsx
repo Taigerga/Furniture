@@ -1,6 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { uploadUrl } from "@/lib/uploads";
+import { formatWaDisplay, telLink } from "@/lib/wa";
 
 export function SiteFooter({
   company,
@@ -58,9 +59,27 @@ export function SiteFooter({
           <div>
             <p className="text-sm font-semibold text-white">Kontak</p>
             <ul className="mt-3 space-y-1.5 text-sm text-white/70">
-              {company?.phone ? <li className="font-mono text-[13px]">{company.phone}</li> : null}
-              {company?.whatsapp ? <li className="font-mono text-[13px]">WA: {company.whatsapp}</li> : null}
-              {company?.email ? <li>{company.email}</li> : null}
+              {company?.phone ? (
+                <li className="font-mono text-[13px]">
+                  <a href={telLink(company.phone) ?? "#"} className="transition hover:text-white hover:underline">
+                    {company.phone}
+                  </a>
+                </li>
+              ) : null}
+              {company?.whatsapp ? (
+                <li className="font-mono text-[13px]">
+                  <a href={telLink(company.whatsapp) ?? "#"} className="transition hover:text-white hover:underline">
+                    WA: {formatWaDisplay(company.whatsapp)}
+                  </a>
+                </li>
+              ) : null}
+              {company?.email ? (
+                <li>
+                  <a href={`mailto:${company.email}`} className="transition hover:text-white hover:underline">
+                    {company.email}
+                  </a>
+                </li>
+              ) : null}
               <li className="flex gap-3 pt-1">
                 {company?.instagram ? (
                   <a href={company.instagram} target="_blank" rel="noopener noreferrer" className="hover:text-white">

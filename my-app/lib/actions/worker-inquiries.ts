@@ -20,3 +20,15 @@ export async function processWorkerInquiry(id: string, formData: FormData) {
   revalidatePath("/worker");
   redirect(`/worker/inquiries/${id}?msg=Status inquiry diperbarui.`);
 }
+
+/** Satu klik setelah pekerja menekan "Buka WhatsApp". */
+export async function markWorkerInquiryContactedAction(id: string) {
+  try {
+    await workerProcessInquiry(id, "CONTACTED");
+  } catch (e) {
+    throw new Error(e instanceof Error ? e.message : "Operasi gagal.");
+  }
+  revalidatePath("/admin");
+  revalidatePath("/worker");
+  redirect(`/worker/inquiries/${id}?msg=Inquiry ditandai sudah dihubungi.`);
+}

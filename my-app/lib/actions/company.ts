@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { adminUpdateCompany } from "@/lib/api/company";
 import { uploadOne } from "@/lib/api/client";
 import { CompanyProfileSchema } from "@/lib/validations";
+import { normalizeWaNumber } from "@/lib/wa";
 import { formFiles, formValues, type ActionState } from "./helpers";
 
 const KEYS = [
@@ -29,8 +30,14 @@ export async function updateCompanyAction(_prev: ActionState | undefined, formDa
     } else if (heroFiles.length > 0 && heroFiles[0]) {
       heroImageUrl = await uploadOne(heroFiles[0], "hero");
     }
+    // WhatsApp disimpan sebagai digit internasional tanpa "+" dan tanpa nol di
+    // depan (628…). wa.me hanya menerima format itu; ini sekaligus memperbaiki
+    // record lama yang masih tersimpan "0821…".
+    const waRaw = typeof parsed.data.whatsapp === "string" ? parsed.data.whatsapp.trim() : "";
+    const whatsapp = waRaw ? (normalizeWaNumber(waRaw) ?? waRaw) : "";
     await adminUpdateCompany({
       ...parsed.data,
+      whatsapp,
       latitude: parsed.data.latitude ?? null,
       longitude: parsed.data.longitude ?? null,
       ...(logoUrl !== undefined ? { logoUrl } : {}),

@@ -205,6 +205,9 @@ async function main() {
   });
 
   const firstProduct = await prisma.product.findFirstOrThrow();
+  // Sengaja dibiarkan format lokal "08…" supaya tetap menjadi regression test:
+  // data lama di DB tidak pernah dimigrasi, normalisasi dijalankan saat render
+  // (my-app/lib/wa.ts) sehingga link wa.me tetap benar.
   await prisma.inquiry.createMany({
     data: [
       { name: "Budi Santoso", email: "budi@mail.com", whatsapp: "081234567890", quantity: 4, message: "Tanya kursi jati minimalis untuk cafe.", status: "NEW", productId: firstProduct.id },
@@ -223,8 +226,8 @@ async function main() {
       history: "Berdiri sebagai workshop kecil, berkembang menjadi produsen custom furniture.",
       vision: "Menjadi produsen furniture custom terpercaya.",
       mission: "Kualitas material, pengerjaan rapi, harga transparan via konsultasi.",
-      phone: "021-0000000",
-      whatsapp: "081200000000",
+      phone: "021-21730722",
+      whatsapp: "6282121730722",
       email: "info@furniture-demo.local",
       address: "Jl. Demo No. 1, Jepara",
       mapsUrl: "https://maps.google.com/?q=Jepara",
